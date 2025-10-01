@@ -17,6 +17,22 @@ from sqlalchemy import create_engine
 
 ##########################
 ##########################
+def find_blank_pooling_tool():
+    """Find the BLANK_POOLING_TOOL.xlsx file in the scripts directory."""
+    # Look for the file in the same directory as this script
+    blank_tool_path = SCRIPT_DIR / 'BLANK_POOLING_TOOL.xlsx'
+    
+    if blank_tool_path.exists():
+        return blank_tool_path
+    else:
+        raise FileNotFoundError(
+            f"BLANK_POOLING_TOOL.xlsx not found at: {blank_tool_path}\n"
+            f"Please ensure the workflow manager scripts are up to date."
+        )
+
+
+##########################
+##########################
 def readSQLdb():
 
     # path to sqlite db lib_info_submitted_to_clarity.db
@@ -136,6 +152,7 @@ def fillPoolingSheet(my_passed_df, target_pool_mass, max_conc_vol, max_dilut_vol
 # MAIN PROGRAM
 ##########################
 PROJECT_DIR = Path.cwd()
+SCRIPT_DIR = Path(__file__).parent  # Directory where this script is located
 
 ARCHIV_DIR = PROJECT_DIR / "archived_files"
 
@@ -145,12 +162,27 @@ ASSIGN_DIR = POOL_DIR / "C_assign_libs_to_pools"
 
 PLOT_DIR = PROJECT_DIR / "DNA_vs_Density_plots"
 
+# Check if the Excel file exists before proceeding
+try:
+    blank_tool_path = find_blank_pooling_tool()
+except FileNotFoundError as e:
+    print(f"ERROR: {e}")
+    sys.exit(1)
 
+# Check if required directories exist
+if not ASSIGN_DIR.exists():
+    print(f"ERROR: Required directory does not exist: {ASSIGN_DIR}")
+    print("This script expects to be run from a project directory with the proper folder structure.")
+    sys.exit(1)
+
+# First, copy the blank pooling tool to the ASSIGN_DIR for permanent use
+permanent_blank_path = ASSIGN_DIR / 'BLANK_POOLING_TOOL.xlsx'
+shutil.copy(blank_tool_path, permanent_blank_path)
 
 # make temporary copy of blank pooling tool, and use temp copy for modifications
 # this script corrupts the blank .xlsx  file used in functions above
 # so I make a copy of original, use temp copy for modification, then delete temp copy
-shutil.copy(ASSIGN_DIR / 'BLANK_POOLING_TOOL.xlsx', ASSIGN_DIR / 'tmp_BLANK.xlsx')  # new metatags
+shutil.copy(blank_tool_path, ASSIGN_DIR / 'tmp_BLANK.xlsx')
 
 
 # create df from lib_info_submitted_to_clarity.db sqliute file
