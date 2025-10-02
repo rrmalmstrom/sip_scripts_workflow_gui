@@ -367,8 +367,8 @@ def findPassFailLibs(my_lib_df, my_dest_plates):
     my_lib_df['Redo_whole_plate'] = ""
 
     # identify libs that are part of a whole plate rework
-    my_lib_df['Redo_whole_plate'].loc[my_lib_df['Destination_ID'].isin(
-        whole_plate_redo)] = True
+    my_lib_df.loc[my_lib_df['Destination_ID'].isin(
+        whole_plate_redo), 'Redo_whole_plate'] = True
 
     # make new column indicating if a library creation should be re-attempted
     my_lib_df['Make_new_library'] = np.where((my_lib_df['Passed_library'] == 0), 1, 0)
