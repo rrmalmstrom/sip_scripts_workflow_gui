@@ -217,58 +217,69 @@ def createSQLdb(lib_df):
 #########################
 
 
-###########################
-# set up folder organiztion
-###########################
+def main():
+    """
+    Main function to conclude the FA analysis, update library information,
+    and generate final output files.
+    """
+    # #########################
+    # set up folder organiztion
+    # #########################
 
-# current_dir = os.path.basename(os.getcwd())
+    # current_dir = os.path.basename(os.getcwd())
 
-PROJECT_DIR = Path.cwd()
+    global PROJECT_DIR, LIB_DIR, FIRST_FA_DIR, SECOND_FA_DIR, THIRD_FA_DIR
+    global PLOT_DIR, ARCHIV_DIR, POOL_DIR, CLARITY_DIR, date
 
-LIB_DIR = PROJECT_DIR / "4_make_library_analyze_fa"
+    PROJECT_DIR = Path.cwd()
 
-FIRST_FA_DIR = LIB_DIR / "B_first_attempt_fa_result"
+    LIB_DIR = PROJECT_DIR / "4_make_library_analyze_fa"
 
-SECOND_FA_DIR = LIB_DIR / "D_second_attempt_fa_result"
+    FIRST_FA_DIR = LIB_DIR / "B_first_attempt_fa_result"
 
-THIRD_FA_DIR = LIB_DIR / "F_third_attempt_fa_result"
+    SECOND_FA_DIR = LIB_DIR / "D_second_attempt_fa_result"
 
-PLOT_DIR = PROJECT_DIR / "DNA_vs_Density_plots"
+    THIRD_FA_DIR = LIB_DIR / "F_third_attempt_fa_result"
 
-ARCHIV_DIR = PROJECT_DIR / "archived_files"
+    PLOT_DIR = PROJECT_DIR / "DNA_vs_Density_plots"
 
-POOL_DIR = PROJECT_DIR / "5_pooling"
+    ARCHIV_DIR = PROJECT_DIR / "archived_files"
 
-CLARITY_DIR = POOL_DIR / "A_make_clarity_aliquot_upload_file"
+    POOL_DIR = PROJECT_DIR / "5_pooling"
 
-
-# get current date and time, will add to archive database file name
-date = datetime.now().strftime("%Y_%m_%d-Time%H-%M-%S")
-
-
-# determine if we should use 2nd or 3rd attempt fa results
-# based on which folder exists and contains the appropriate
-# updated_fa_analysis_summary.txt file
-updated_file_name = findUpdateFAFile()
-
-# add library pass/fail results from updated_X_fa_analysis.txt
-# to the lib_info.csv file
-# pass/fail results may have been manually modified
-lib_df = updateLibInfo(updated_file_name)
-
-# create updated version of library info file and place
-# in pooling directory
-# this file can be manually modified one last time before
-# submitting the final version to clarity
-lib_df.to_csv(CLARITY_DIR / 'final_lib_summary.csv', index=False)
+    CLARITY_DIR = POOL_DIR / "A_make_clarity_aliquot_upload_file"
 
 
-# create sqlite database file
-createSQLdb(lib_df)
+    # get current date and time, will add to archive database file name
+    date = datetime.now().strftime("%Y_%m_%d-Time%H-%M-%S")
 
 
-# Create success marker file to indicate script completed successfully
-import os
-os.makedirs('.workflow_status', exist_ok=True)
-with open('.workflow_status/conclude.all.fa.analysis.success', 'w') as f:
-    f.write('Script completed successfully')
+    # determine if we should use 2nd or 3rd attempt fa results
+    # based on which folder exists and contains the appropriate
+    # updated_fa_analysis_summary.txt file
+    updated_file_name = findUpdateFAFile()
+
+    # add library pass/fail results from updated_X_fa_analysis.txt
+    # to the lib_info.csv file
+    # pass/fail results may have been manually modified
+    lib_df = updateLibInfo(updated_file_name)
+
+    # create updated version of library info file and place
+    # in pooling directory
+    # this file can be manually modified one last time before
+    # submitting the final version to clarity
+    lib_df.to_csv(CLARITY_DIR / 'final_lib_summary.csv', index=False)
+
+
+    # create sqlite database file
+    createSQLdb(lib_df)
+
+
+    # Create success marker file to indicate script completed successfully
+    os.makedirs('.workflow_status', exist_ok=True)
+    with open('.workflow_status/conclude.all.fa.analysis.success', 'w') as f:
+        f.write('Script completed successfully')
+
+
+if __name__ == "__main__":
+    main()
