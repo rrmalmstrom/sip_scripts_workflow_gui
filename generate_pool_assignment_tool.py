@@ -151,56 +151,63 @@ def fillPoolingSheet(my_passed_df, target_pool_mass, max_conc_vol, max_dilut_vol
 ##########################
 # MAIN PROGRAM
 ##########################
-PROJECT_DIR = Path.cwd()
-SCRIPT_DIR = Path(__file__).parent  # Directory where this script is located
+def main():
+    """Main function to generate pool assignments."""
+    global PROJECT_DIR, SCRIPT_DIR, ASSIGN_DIR
+    PROJECT_DIR = Path.cwd()
+    SCRIPT_DIR = Path(__file__).parent  # Directory where this script is located
 
-ARCHIV_DIR = PROJECT_DIR / "archived_files"
+    ARCHIV_DIR = PROJECT_DIR / "archived_files"
 
-POOL_DIR = PROJECT_DIR / "5_pooling"
+    POOL_DIR = PROJECT_DIR / "5_pooling"
 
-ASSIGN_DIR = POOL_DIR / "C_assign_libs_to_pools"
+    ASSIGN_DIR = POOL_DIR / "C_assign_libs_to_pools"
 
-PLOT_DIR = PROJECT_DIR / "DNA_vs_Density_plots"
+    PLOT_DIR = PROJECT_DIR / "DNA_vs_Density_plots"
 
-# Check if the Excel file exists before proceeding
-try:
-    blank_tool_path = find_blank_pooling_tool()
-except FileNotFoundError as e:
-    print(f"ERROR: {e}")
-    sys.exit(1)
+    # Check if the Excel file exists before proceeding
+    try:
+        blank_tool_path = find_blank_pooling_tool()
+    except FileNotFoundError as e:
+        print(f"ERROR: {e}")
+        sys.exit(1)
 
-# Check if required directories exist
-if not ASSIGN_DIR.exists():
-    print(f"ERROR: Required directory does not exist: {ASSIGN_DIR}")
-    print("This script expects to be run from a project directory with the proper folder structure.")
-    sys.exit(1)
+    # Check if required directories exist
+    if not ASSIGN_DIR.exists():
+        print(f"ERROR: Required directory does not exist: {ASSIGN_DIR}")
+        print("This script expects to be run from a project directory with the proper folder structure.")
+        sys.exit(1)
 
-# First, copy the blank pooling tool to the ASSIGN_DIR for permanent use
-permanent_blank_path = ASSIGN_DIR / 'BLANK_POOLING_TOOL.xlsx'
-shutil.copy(blank_tool_path, permanent_blank_path)
-
-# make temporary copy of blank pooling tool, and use temp copy for modifications
-# this script corrupts the blank .xlsx  file used in functions above
-# so I make a copy of original, use temp copy for modification, then delete temp copy
-shutil.copy(blank_tool_path, ASSIGN_DIR / 'tmp_BLANK.xlsx')
+    # First, copy the blank pooling tool to the ASSIGN_DIR for permanent use
+    permanent_blank_path = ASSIGN_DIR / 'BLANK_POOLING_TOOL.xlsx'
+    shutil.copy(blank_tool_path, permanent_blank_path)
 
 
-# create df from lib_info_submitted_to_clarity.db sqliute file
-passed_df = readSQLdb()
+    # make temporary copy of blank pooling tool, and use temp copy for modifications
+    # this script corrupts the blank .xlsx  file used in functions above
+    # so I make a copy of original, use temp copy for modification, then delete temp copy
+    shutil.copy(blank_tool_path, ASSIGN_DIR / 'tmp_BLANK.xlsx')
 
-# get library and pipetting specs from user
-target_pool_mass, max_conc_vol, max_dilut_vol, min_tran_vol = getConstants()
+
+    # create df from lib_info_submitted_to_clarity.db sqliute file
+    passed_df = readSQLdb()
+
+    # get library and pipetting specs from user
+    target_pool_mass, max_conc_vol, max_dilut_vol, min_tran_vol = getConstants()
 
 
-# fill a blank pooling tool .xlsx file with plate, illumina index, and # of libs in each plate
-fillPoolingSheet(passed_df, target_pool_mass,
-                 max_conc_vol, max_dilut_vol, min_tran_vol)
+    # fill a blank pooling tool .xlsx file with plate, illumina index, and # of libs in each plate
+    fillPoolingSheet(passed_df, target_pool_mass,
+                     max_conc_vol, max_dilut_vol, min_tran_vol)
 
-# delete temporary copy of blank pooling tool .xlsx
-os.remove(ASSIGN_DIR / 'tmp_BLANK.xlsx')
+    # delete temporary copy of blank pooling tool .xlsx
+    os.remove(ASSIGN_DIR / 'tmp_BLANK.xlsx')
 
-# Create success marker file to indicate script completed successfully
-import os
-os.makedirs('.workflow_status', exist_ok=True)
-with open('.workflow_status/generate_pool_assignment_tool.success', 'w') as f:
-    f.write('Script completed successfully')
+    # Create success marker file to indicate script completed successfully
+    os.makedirs('.workflow_status', exist_ok=True)
+    with open('.workflow_status/generate_pool_assignment_tool.success', 'w') as f:
+        f.write('Script completed successfully')
+
+
+if __name__ == "__main__":
+    main()
