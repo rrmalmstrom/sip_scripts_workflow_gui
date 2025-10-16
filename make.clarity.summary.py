@@ -18,7 +18,28 @@ import os
 
 ##########################
 ##########################
-def readSQLdb():
+def harmonize_dataframes(df1, df2):
+    """
+    Harmonizes data types and NaN/None values between two DataFrames for accurate comparison.
+    """
+    df2 = df2[df1.columns]  # Ensure columns are in the same order
+
+    for col in df1.columns:
+        if pd.api.types.is_numeric_dtype(df1[col]):
+            df1[col] = df1[col].astype('Float64')
+            df2[col] = pd.to_numeric(df2[col], errors='coerce').astype('Float64')
+        else:
+            df1[col] = df1[col].astype('string').fillna(pd.NA)
+            df2[col] = df2[col].astype('string').fillna(pd.NA)
+    
+    return df1, df2
+##########################
+##########################
+
+
+##########################
+##########################
+def readSQLdb(PROJECT_DIR):
 
     # path to sqlite db lib_info.db
     sql_db_path = PROJECT_DIR / 'lib_info.db'
@@ -45,7 +66,7 @@ def readSQLdb():
 
 #########################
 #########################
-def updateSQLdb(lb_info_df):
+def updateSQLdb(lb_info_df, PROJECT_DIR, ARCHIV_DIR, date):
 
     # archive the older version of sql lib_info.db
     Path(PROJECT_DIR /
@@ -72,24 +93,27 @@ def updateSQLdb(lb_info_df):
 
 ##########################
 ##########################
-def compareFinalVSlibinfo(lib_df, lb_info_df):
+def compareFinalVSlibinfo(lib_df, lb_info_df, PROJECT_DIR, ARCHIV_DIR, date):
+    # Harmonize dataframes before comparison
+    lib_df_harmonized, lb_info_df_harmonized = harmonize_dataframes(lib_df.copy(), lb_info_df.copy())
+
     # check for manual updates to final_lib_summary.csv
     # and update lib_info.csv if manual updates found
-    if not lib_df.equals(lb_info_df):
+    if not lib_df_harmonized.equals(lb_info_df_harmonized):
         keep_going = str(input(
-            """\n\nThe final_lib_summary.csv database is different from lib_info.csv.  Would you like to replace lib_info.csv with final_lib_summary.csv?  (y/n)\n\n""") or "n")
+            """\n\nThe final_lib_summary.csv database is different from lib_info.db.  Would you like to replace lib_info.db with the contents of final_lib_summary.csv?  (y/n)\n\n""") or "n")
 
         if (keep_going.lower() == 'y'):
             print("Ok, we'll keep going\n\n")
 
-        elif (keep_going.lower == 'n'):
+        elif (keep_going.lower() == 'n'):
             print('Ok, aborting script\n\n')
             sys.exit()
         else:
             print("Sorry, you must choose 'Y' or 'N' next time. \n\nAborting\n\n")
             sys.exit()
 
-        # arive the current lib_info.csv
+        # archive the current lib_info.csv
         Path(PROJECT_DIR /
              "lib_info.csv").rename(ARCHIV_DIR / f"archive_lib_info_{date}.csv")
         Path(ARCHIV_DIR / f"archive_lib_info_{date}.csv").touch()
@@ -98,7 +122,7 @@ def compareFinalVSlibinfo(lib_df, lb_info_df):
         lib_df.to_csv(PROJECT_DIR / 'lib_info.csv', index=False)
         
         # update lib_info.db sqlite database file
-        updateSQLdb(lb_info_df)       
+        updateSQLdb(lib_df, PROJECT_DIR, ARCHIV_DIR, date)       
 
     return
 
@@ -190,7 +214,7 @@ def selectPlateForPooling(my_lib_df):
 ##########################
 # Create summary file for direct upload to Clarity
 ####################
-def makeClaritySummary(my_lib_df):
+def makeClaritySummary(my_lib_df, CLARITY_DIR):
     # creat new dataframe for export into clarity_summary file
     its_df = my_lib_df[['Plate Barcode', 'Sample Barcode', 'Well Pos', 'Fraction #',
                         'Density (g/mL)', 'DNA Concentration (ng/uL)', 'Fraction Volume (uL)', 'Sequin Mix', 'Sequin Mass (pg)', 'DNA_transfer_vol_(nl)', 'Pool_source_plate', 'Pool_source_well']]
@@ -218,7 +242,7 @@ def makeClaritySummary(my_lib_df):
 
 #########################
 #########################
-def createSQLdb(passed_df):
+def createSQLdb(passed_df, PROJECT_DIR):
 
     sql_db_path = PROJECT_DIR /'lib_info_submitted_to_clarity.db'
 
@@ -237,48 +261,49 @@ def createSQLdb(passed_df):
 #########################
 #########################
 
-##########################
-# MAIN PROGRAM
-##########################
-PROJECT_DIR = Path.cwd()
+def main():
+    """Main function to run the script."""
+    PROJECT_DIR = Path.cwd()
+    
+    ARCHIV_DIR = PROJECT_DIR / "archived_files"
+    
+    POOL_DIR = PROJECT_DIR / "5_pooling"
+    
+    CLARITY_DIR = POOL_DIR / "A_make_clarity_aliquot_upload_file"
+    
+    PLOT_DIR = PROJECT_DIR / "DNA_vs_Density_plots"
+    
+    # get current date and time, will add to archive database file name
+    date = datetime.now().strftime("%Y_%m_%d-Time%H-%M-%S")
+    
+    
+    # create df from updated_redo_fa_analysis_summary.csv file
+    lib_df = pd.read_csv(CLARITY_DIR / 'final_lib_summary.csv',
+                         header=0, converters={'Sample Barcode': str, 'Fraction #': int})
+    
+    # create df from lib_info.db sqliute file
+    lb_info_df = readSQLdb(PROJECT_DIR)
+    
+    
+    compareFinalVSlibinfo(lib_df, lb_info_df, PROJECT_DIR, ARCHIV_DIR, date)
+    
+    
+    # update df with final plate selection for each lib
+    passed_df = selectPlateForPooling(lib_df)
+    
+    
+    # make .xls summary file for upload to Clarity.  This will create good fractions in the Sample Aliquot Queue
+    makeClaritySummary(passed_df, CLARITY_DIR)
+    
+    # create sqlite database file
+    createSQLdb(passed_df, PROJECT_DIR)
+    
+    
+    
+    # Create success marker file to indicate script completed successfully
+    os.makedirs('.workflow_status', exist_ok=True)
+    with open('.workflow_status/make.clarity.summary.success', 'w') as f:
+        f.write('Script completed successfully')
 
-ARCHIV_DIR = PROJECT_DIR / "archived_files"
-
-POOL_DIR = PROJECT_DIR / "5_pooling"
-
-CLARITY_DIR = POOL_DIR / "A_make_clarity_aliquot_upload_file"
-
-PLOT_DIR = PROJECT_DIR / "DNA_vs_Density_plots"
-
-# get current date and time, will add to archive database file name
-date = datetime.now().strftime("%Y_%m_%d-Time%H-%M-%S")
-
-
-# create df from updated_redo_fa_analysis_summary.csv file
-lib_df = pd.read_csv(CLARITY_DIR / 'final_lib_summary.csv',
-                     header=0, converters={'Sample Barcode': str, 'Fraction #': int})
-
-# create df from lib_info.db sqliute file
-lb_info_df = readSQLdb()
-
-
-compareFinalVSlibinfo(lib_df, lb_info_df)
-
-
-# update df with final plate selection for each lib
-passed_df = selectPlateForPooling(lib_df)
-
-
-# make .xls summary file for upload to Clarity.  This will create good fractions in the Sample Aliquot Queue
-makeClaritySummary(passed_df)
-
-# create sqlite database file
-createSQLdb(passed_df)
-
-
-
-# Create success marker file to indicate script completed successfully
-import os
-os.makedirs('.workflow_status', exist_ok=True)
-with open('.workflow_status/make.clarity.summary.success', 'w') as f:
-    f.write('Script completed successfully')
+if __name__ == "__main__":
+    main()
